@@ -1,36 +1,38 @@
-import { createClient } from 'redis';
+import redis from 'redis';
+import { promisify } from 'util';
 
-
+/**
+ * Class for performing operations with Redis service
+ */
 class RedisClient {
-    constructor() {
-        this.connectd = false;
-        this.client = createClient();
-        this.client.on('connect', () => {
-            this.connectd = true;
-        });
-        this.client.on('error', (err) => {console.log(err);});
-    }
+  constructor() {
+    this.client = redis.createClient();
+    this.getAsync = promisify(this.client.get).bind(this.client);
 
-    isAlive() {
-        return this.connectd;
-    }
+    this.client.on('error', (error) => {
+      console.log(`Redis client not connected to the server: ${error.message}`);
+    });
 
-    async get(key) {
-        const value = await this.client.get(key);
-        if (value === undefined) {
-            return null;
-        } else {
-            return value
-        }
-    }
+    this.client.on('connect', () => {
+    });
+  }
 
-    async set(key, value, duration) {
-        await this.client.set(key,value, 'EX', duration);
-    }
+  isAlive() {
+    return this.client.connected;
+  }
 
-    async del(key) {
-        await this.client.del(key);
-    }
+  async get(key) {
+    const value = await this.getAsync(key);
+    return value;
+  }
+
+  async set(key, value, duration) {
+    this.client.setex(key, duration, value);
+  }
+
+  async del(key) {
+    this.client.del(key);
+  }
 }
 
 const redisClient = new RedisClient();
