@@ -1,30 +1,41 @@
 import sha1 from 'sha1';
-import dbCLient from '../utils/db';
+import dbClient from '../utils/db';
 
 class UsersController {
   static async postNew(req, res) {
     const { email, password } = req.body;
-    
-    if (password === undefined) {
-      return res.status(400).json({ error: 'Missing password' });
-    }
 
-    if (email === undefined) {
+    // Check for missing email
+    if (!email) {
       return res.status(400).json({ error: 'Missing email' });
     }
 
-    // Check if user already exists
-    if (dbCLient.isAlive()) {
-      const user = await dbCLient.dataBase.collection('users').findOne({ email });
-      if (user) {
-        return res.status(400).json({ error: 'User already exists' });
-      }
-      const hashedPassword = sha1(password);
-      const result = await dbCLient.dataBase.collection('users').insertOne({ email, hashedPassword });
-      const newUserId = result.insertedId;
-      return res.status(201).send({ email, id: newUserId });
+    // Check for missing password
+    if (!password) {
+      return res.status(400).json({ error: 'Missing password' });
     }
-    return res.status(500).json({ error: 'Database connection failed' });
+
+    // Ensure database connection is alive
+    if (dbClient.isAlive()) {
+      try {
+        // Check if user already exists
+        const user = await dbClient.dataBase.collection('users').findOne({ email });
+        if (user) {
+          return res.status(400).json({ error: 'Already exist' });
+        }
+
+        // Hash the password and insert the new user
+        const hashedPassword = sha1(password);
+        const result = await dbClient.dataBase.collection('users').insertOne({ email, password: hashedPassword });
+
+        // Respond with the new user details
+        return res.status(201).json({ id: result.insertedId.toString(), email });
+      } catch (error) {
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+    } else {
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
   }
 }
 
