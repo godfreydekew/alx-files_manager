@@ -4,7 +4,6 @@ import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
 const base64 = require('base-64');
-const { ObjectId } = require('mongodb');
 
 class AuthController {
   static async getConnect(req, res) {
@@ -43,23 +42,7 @@ class AuthController {
     }
     try {
       await redisClient.del(redisKey);
-      return res.status(204);
-    } catch (error) {
-      return res.status(500).json({ error: error.message });
-    }
-  }
-
-  static async getMe(req, res) {
-    // Implementation for getting the user's info (based on the token)
-    const xToken = req.headers['X-Token'] || req.headers['x-token'];
-    const redisKey = `auth_${xToken}`;
-    const user = await redisClient.get(redisKey);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    try {
-      const userDetails = await dbClient.dataBase.collection('users').findOne({ _id: new ObjectId(user) });
-      return res.status(200).json({ id: user, email: userDetails.email });
+      return res.status(204).end();
     } catch (error) {
       return res.status(500).json({ error: error.message });
     }

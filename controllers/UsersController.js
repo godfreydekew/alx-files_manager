@@ -1,5 +1,8 @@
 import sha1 from 'sha1';
 import dbClient from '../utils/db';
+import redisClient from '../utils/redis';
+
+const { ObjectId } = require('mongodb');
 
 class UsersController {
   static async postNew(req, res) {
@@ -35,6 +38,22 @@ class UsersController {
       }
     } else {
       return res.status(500).json({ error: 'Database connection failed' });
+    }
+  }
+
+  static async getMe(req, res) {
+    // Implementation for getting the user's info (based on the token)
+    const xToken = req.headers['X-Token'] || req.headers['x-token'];
+    const redisKey = `auth_${xToken}`;
+    const user = await redisClient.get(redisKey);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const userDetails = await dbClient.dataBase.collection('users').findOne({ _id: new ObjectId(user) });
+      return res.status(200).json({ id: user, email: userDetails.email });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
     }
   }
 }
