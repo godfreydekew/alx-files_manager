@@ -3,10 +3,8 @@ import dbCLient from '../utils/db';
 
 class UsersController {
   static async postNew(req, res) {
-    console.log('ins');
     const { email, password } = req.body;
-    console.log(email);
-
+    
     if (password === undefined) {
       return res.status(400).json({ error: 'Missing password' });
     }
