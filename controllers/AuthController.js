@@ -1,28 +1,35 @@
 import { v4 as uuidv4 } from 'uuid';
 import sha1 from 'sha1';
+import base64 from 'base-64';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
-const base64 = require('base-64');
-
 class AuthController {
   static async getConnect(req, res) {
-    const encoded = req.headers.authorization.split(' ')[1];
+    const authorizationHeader = req.headers.authorization;
+
+    if (!authorizationHeader) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const encoded = authorizationHeader.split(' ')[1];
     const decoded = base64.decode(encoded);
     const [email, password] = decoded.split(':');
 
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' });
+    }
+
     if (dbClient.isAlive()) {
       const user = await dbClient.dataBase.collection('users').findOne({ email });
-      // Check if user exists
       if (user && sha1(password) === user.password) {
         const token = uuidv4();
         const redisKey = `auth_${token}`;
         try {
-          // Store the token in Redis
-          await redisClient.set(redisKey, user._id.toString(), 86400);
+          await redisClient.set(redisKey, user._id.toString(), 86400); // 24 hours
           return res.status(200).json({ token });
         } catch (error) {
-          return res.status(500).json({ error: error.message });
+          return res.status(500).json({ error: 'Failed to store token in Redis' });
         }
       } else {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -33,18 +40,22 @@ class AuthController {
   }
 
   static async getDisconnect(req, res) {
-    const xToken = req.headers['X-Token'] || req.headers['x-token'];
-    const redisKey = `auth_${xToken}`;
-
-    const user = await redisClient.get(redisKey);
-    if (!user) {
+    const xToken = req.headers['x-token'];
+    if (!xToken) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    const redisKey = `auth_${xToken}`;
+    const userId = await redisClient.get(redisKey);
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     try {
       await redisClient.del(redisKey);
-      return res.status(204).end();
+      return res.status(204).end(); // 204 No Content
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Failed to delete token from Redis' });
     }
   }
 }
