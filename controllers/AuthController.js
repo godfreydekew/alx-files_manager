@@ -20,7 +20,7 @@ class AuthController {
         const redisKey = `auth_${token}`;
         try {
           // Store the token in Redis
-          await redisClient.set(redisKey, user._id.toString(), 3600);
+          await redisClient.set(redisKey, user._id.toString(), 86400);
           return res.status(200).json({ token });
         } catch (error) {
           return res.status(500).json({ error: error.message });
