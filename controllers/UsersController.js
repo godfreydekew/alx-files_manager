@@ -18,13 +18,13 @@ class UsersController {
 
     if (dbClient.isAlive()) {
       try {
-        const user = await dbClient.dataBase.collection('users').findOne({ email });
+        const user = await dbClient.db.collection('users').findOne({ email });
         if (user) {
           return res.status(400).json({ error: 'Already exist' });
         }
 
         const hashedPassword = sha1(password);
-        const result = await dbClient.dataBase.collection('users').insertOne({ email, password: hashedPassword });
+        const result = await dbClient.db.collection('users').insertOne({ email, password: hashedPassword });
 
         return res.status(201).json({ id: result.insertedId.toString(), email });
       } catch (error) {
@@ -44,7 +44,7 @@ class UsersController {
 
     if (!userId) { return res.status(401).json({ error: 'Unauthorized' }); }
     try {
-      const userDetails = await dbClient.dataBase.collection('users').findOne({ _id: new ObjectId(userId) });
+      const userDetails = await dbClient.db.collection('users').findOne({ _id: new ObjectId(userId) });
 
       if (!userDetails) { return res.status(401).json({ error: 'Unauthorized' }); }
 
