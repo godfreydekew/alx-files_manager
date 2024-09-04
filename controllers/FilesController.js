@@ -20,15 +20,14 @@ class FilesController {
     if (!type || !['folder', 'file', 'image'].includes(type)) {
       return res.status(400).json({ error: 'Missing type' });
     }
-    console.log('Uploading');
 
     if (!data && type !== 'folder') { return res.status(400).json({ error: 'Missing data' }); }
 
-    if (parentId !== 0) {
+    if (parentId) {
       const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(parentId) });
-      if (!file) { return res.status(404).json({ error: 'Parent not found' }); }
+      if (!file) { return res.status(400).json({ error: 'Parent not found' }); }
 
-      if (file.type !== 'folder') { return res.status(404).json({ error: 'Parent is not a folder' }); }
+      if (file.type !== 'folder') { return res.status(400).json({ error: 'Parent is not a folder' }); }
     }
 
     const fileInfo = {
@@ -41,8 +40,7 @@ class FilesController {
     // parentId = user._id;
     if (type === 'folder') {
       const result = await dbClient.db.collection('files').insertOne({ ...fileInfo });
-
-      res.status(200).json({ id: result.insertedId, ...fileInfo });
+      res.status(201).json({ id: result.insertedId, ...fileInfo });
     } else {
       // create the folder
 
