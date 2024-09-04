@@ -4,6 +4,7 @@ import fs from 'fs';
 import mime from 'mime-types';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
+import mongoDBCore from 'mongodb/lib/core';
 
 class FilesController {
   static async postUpload(req, res) {
@@ -207,45 +208,33 @@ class FilesController {
 
   static async getFile(req, res) {
     const fileId = req.params.id;
+    const fileCollection = dbClient.db.collection('files');
+    const file = await fileCollection.findOne({ _id: ObjectId(fileId) });
 
-    if (!ObjectId.isValid(fileId)) {
-      return res.status(400).json({ error: 'Invalid file ID' });
+    if (!file) return res.status(404).json({ error: 'Not found' });
+
+    const token = req.header('X-Token');
+    const id = await redisClient.get(`auth_${token}`);
+    const user = await dbClient.db.collection('users').findOne({ _id: ObjectId(id) });
+    if ((!id || !user || file.userId.toString() !== id) && !file.isPublic) {
+      return res.status(404).json({ error: 'Not found' });
     }
 
-    try {
-      const file = await dbClient.db.collection('files').findOne({ _id: new ObjectId(fileId) });
-      if (!file) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-
-      if (!file.isPublic) {
-        const xToken = req.headers['X-Token'] || req.headers['x-token'];
-        if (!xToken) {
-          return res.status(401).json({ error: 'Unauthorized' });
-        }
-        const userId = await redisClient.get(`auth_${xToken}`);
-        if (!userId || file.userId.toString() !== userId) {
-          return res.status(404).json({ error: 'Not found' });
-        }
-      }
-
-      if (file.type === 'folder') {
-        return res.status(400).json({ error: "A folder doesn't have content" });
-      }
-
-      const relativePath = process.env.FOLDER_PATH || '/tmp/files_manager';
-      const filePath = `${relativePath}/${file.localPath}`;
-
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Not found' });
-      }
-
-      const data = await fs.promises.readFile(filePath);
-      const contentType = mime.contentType(file.name) || 'application/octet-stream';
-      return res.header('Content-Type', contentType).status(200).send(data);
-    } catch (err) {
-      return res.status(500).json({ error: 'Server error' });
+    if (file.type === 'folder') {
+      return res.status(400).json({ error: 'A folder doesn\'t have a content' });
     }
+
+    const { size } = req.query;
+    let fileLocalPath = file.localPath;
+    if (size) {
+      fileLocalPath = `${file.localPath}_${size}`;
+    }
+
+    if (!fs.existsSync(fileLocalPath)) return res.status(404).json({ error: 'Not found' });
+
+    const data = await fs.promises.readFile(fileLocalPath);
+    const headerContentType = mime.contentType(file.name);
+    return res.header('Content-Type', headerContentType).status(200).send(data);
   }
 }
 
