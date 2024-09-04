@@ -48,9 +48,9 @@ class UsersController {
 
       if (!userDetails) { return res.status(401).json({ error: 'Unauthorized' }); }
 
-      return res.json({ id: userDetails._id.toString(), email: userDetails.email });
+      return res.status(200).json({ id: userDetails._id.toString(), email: userDetails.email });
     } catch (error) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
   }
 }
