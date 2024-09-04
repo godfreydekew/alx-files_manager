@@ -3,34 +3,31 @@ import { MongoClient } from 'mongodb';
 const port = process.env.DB_PORT || 27017;
 const host = process.env.DB_HOST || 'localhost';
 const database = process.env.DB_NAME || 'files_manager';
-const url = `mongodb://${host}:${port}`;
+const url = `mongodb://${host}:${port}/${database}`;
 
 class DBClient {
   constructor() {
-    this.connected = false;
-    MongoClient.connect(url, { useUnifiedTopology: true }, (err, client) => {
-      if (!err) {
-        this.dataBase = client.db(database);
-        this.connected = true;
-      } else {
-        console.log(err.message);
-        this.connected = false;
-      }
-    });
+    const client = new MongoClient(url, { useNewUrlParser: true, useUnifiedTopology: true });
+    this.client = client;
+    this.client.connect();
+    this.db = client.db(database);
   }
 
   isAlive() {
-    return this.connected;
+    if (this.client && this.client.topology && this.client.topology.isConnected()) {
+      return true;
+    }
+    return false;
   }
 
   async nbUsers() {
-    const usersCollection = this.dataBase.collection('users');
+    const usersCollection = this.db.collection('users');
     const numberOfDocuments = await usersCollection.countDocuments();
     return numberOfDocuments;
   }
 
   async nbFiles() {
-    const usersCollection = this.dataBase.collection('files');
+    const usersCollection = this.db.collection('files');
     const numberOfDocuments = await usersCollection.countDocuments();
     return numberOfDocuments;
   }
