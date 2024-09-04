@@ -40,25 +40,24 @@ class FilesController {
     // parentId = user._id;
     if (type === 'folder') {
       const result = await dbClient.db.collection('files').insertOne({ ...fileInfo });
-      res.status(201).json({ id: result.insertedId, ...fileInfo });
-    } else {
-      // create the folder
-
-      const relativePath = process.env.FOLDER_PATH || '/tmp/files_manager';
-      if (!fs.existsSync(relativePath)) {
-        fs.mkdirSync((relativePath));
-      }
-      const identity = uuidv4();
-      const localPath = `${relativePath}/${identity}`;
-      fs.writeFile(localPath, data, 'base64', (err) => {
-        if (err) console.log(err);
-      });
-      const newFile = await dbClient.db.collection('files').insertOne({
-        ...fileInfo,
-        localPath,
-      });
-      res.status(201).json({ id: newFile.insertedId, ...fileInfo });
+      return res.status(201).json({ id: result.insertedId, ...fileInfo });
     }
+    // create the folder
+
+    const relativePath = process.env.FOLDER_PATH || '/tmp/files_manager';
+    if (!fs.existsSync(relativePath)) {
+      fs.mkdirSync((relativePath));
+    }
+    const identity = uuidv4();
+    const localPath = `${relativePath}/${identity}`;
+    fs.writeFile(localPath, data, 'base64', (err) => {
+      if (err) console.log(err);
+    });
+    const newFile = await dbClient.db.collection('files').insertOne({
+      ...fileInfo,
+      localPath,
+    });
+    return res.status(201).json({ id: newFile.insertedId, ...fileInfo });
   }
 }
 
